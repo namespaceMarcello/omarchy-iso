@@ -66,6 +66,12 @@ jq --arg kernel "${KERNEL:-linux-omarchy}" --arg mirror "${MIRROR:-https://arm-m
 mv "$answers.new" "$answers"
 # The live ISO runs cloud-init, and a CIDATA volume is where it looks. This
 # gives the test a way in to the live system, to see why an install stopped.
+# cloud-init decides once, in its systemd generator, whether to run at all,
+# so the volume is a disk on the ISO's own virtio-scsi controller (below):
+# linux-omarchy builds that driver in, and the kernel attaches its disks
+# before it starts the initramfs. A USB stick comes later: usb-storage is a
+# module and scans a stick a second after finding it (delay_use), by which
+# time the generator may have found no volume and turned cloud-init off.
 printf 'instance-id: arm64-install\nlocal-hostname: archiso\n' >"$state/cidata/meta-data"
 printf '#cloud-config\nusers:\n  - name: root\n    ssh_authorized_keys:\n      - %s\n' "$(cat "$SSH_KEY.pub")" >"$state/cidata/user-data"
 # A VM has none of the hardware Omarchy's detector looks for. Given a
@@ -92,8 +98,8 @@ qemu-system-aarch64 -machine "${MACHINE:-virt,gic-version=3,msi=gicv2m,acpi=off}
   -drive "file=$state/target.qcow2,format=qcow2,if=none,id=target" -device virtio-blk-pci,drive=target,bootindex=0 \
   -device virtio-scsi-pci -drive "file=$iso,format=raw,if=none,id=iso,media=cdrom,readonly=on" \
   -device scsi-cd,drive=iso,bootindex=1 \
+  -drive "file=$CIDATA_IMG,format=raw,if=none,id=cidata" -device scsi-hd,drive=cidata \
   -device qemu-xhci -device usb-kbd -device usb-tablet \
-  -drive "file=$CIDATA_IMG,format=raw,if=none,id=cidata" -device usb-storage,drive=cidata \
   -device virtio-gpu-pci -device virtio-rng-pci \
   -netdev "user,id=net,hostfwd=tcp:127.0.0.1:$port-:22" -device virtio-net-pci,netdev=net \
   -serial "file:$out/serial.log" -display none \
