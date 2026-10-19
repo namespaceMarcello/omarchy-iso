@@ -78,10 +78,6 @@ cp "$answers" "$out/user_configuration.json"
 # An N1x's firmware describes its NVDA0200 I2C controllers in ACPI and has the
 # GPU memory variable; this VM's gets both from an option ROM on its RNG.
 rng=virtio-rng-pci
-if [[ -n ${PLATFORM:-} ]]; then
-  "$ROOT/test/arm64-n1x/make-rom" "$state/n1x.rom"
-  rng+=",romfile=$state/n1x.rom"
-fi
 port=$(( 20000 + RANDOM % 10000 ))
 qemu-img create -q -f qcow2 "$state/target.qcow2" 40G
 cp "$vars" "$state/vars.fd"
